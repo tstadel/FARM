@@ -4,17 +4,17 @@ import logging
 import random
 import os
 import signal
-
-
 import numpy as np
 import torch
 from requests.exceptions import ConnectionError
 from torch import multiprocessing as mp
 import mlflow
 from copy import deepcopy
-from farm.visual.ascii.images import WELCOME_BARN, WORKER_M, WORKER_F, WORKER_X
 import pandas as pd
 from tqdm import tqdm
+
+
+from farm.visual.ascii.images import WELCOME_BARN, WORKER_M, WORKER_F, WORKER_X
 
 
 logger = logging.getLogger(__name__)
@@ -137,6 +137,8 @@ class MLFlowLogger(BaseMLLogger):
             mlflow.log_metrics(metrics, step=step)
         except ConnectionError:
             logger.warning(f"ConnectionError in logging metrics to MLFlow.")
+        except Exception as e:
+            logger.warning(f"Failed to log metrics: {e}")
 
     @classmethod
     def log_params(cls, params):
@@ -144,6 +146,8 @@ class MLFlowLogger(BaseMLLogger):
             mlflow.log_params(params)
         except ConnectionError:
             logger.warning("ConnectionError in logging params to MLFlow")
+        except Exception as e:
+            logger.warning(f"Failed to log params: {e}")
 
     @classmethod
     def log_artifacts(cls, dir_path, artifact_path=None):
@@ -151,6 +155,8 @@ class MLFlowLogger(BaseMLLogger):
             mlflow.log_artifacts(dir_path, artifact_path)
         except ConnectionError:
             logger.warning(f"ConnectionError in logging artifacts to MLFlow")
+        except Exception as e:
+            logger.warning(f"Failed to log artifacts: {e}")
 
     @classmethod
     def end_run(cls):
@@ -374,6 +380,7 @@ def reformat_msmarco_dev(queries_filename, passages_filename, qrels_filename, to
     df.to_csv(output_filename, sep="\t", index=None)
     print(f"MSMarco train data saved at {output_filename}")
 
+
 def write_msmarco_results(results, output_filename):
     out_file = open(output_filename, "w")
     for dictionary in results:
@@ -384,6 +391,5 @@ def write_msmarco_results(results, output_filename):
                 score = 1 - pred["probability"]
             out_file.write(str(score))
             out_file.write("\n")
-
 
 
