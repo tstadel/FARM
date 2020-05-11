@@ -130,7 +130,9 @@ class LanguageModel(nn.Module):
             if language_model_class is None:
                 # it's transformers format (either from model hub or local)
                 pretrained_model_name_or_path = str(pretrained_model_name_or_path)
-                if "xlm" in pretrained_model_name_or_path and "roberta" in pretrained_model_name_or_path:
+                if 'electra' in pretrained_model_name_or_path:
+                    language_model_class = 'Electra'
+                elif "xlm" in pretrained_model_name_or_path and "roberta" in pretrained_model_name_or_path:
                     language_model_class = 'XLMRoberta'
                 elif 'roberta' in pretrained_model_name_or_path:
                     language_model_class = 'Roberta'
@@ -138,14 +140,12 @@ class LanguageModel(nn.Module):
                     language_model_class = 'Albert'
                 elif 'distilbert' in pretrained_model_name_or_path:
                     language_model_class = 'DistilBert'
-                elif 'bert' in pretrained_model_name_or_path:
-                    language_model_class = 'Bert'
                 elif 'xlnet' in pretrained_model_name_or_path:
                     language_model_class = 'XLNet'
-                elif 'electra' in pretrained_model_name_or_path:
-                    language_model_class = 'Electra'
                 elif "word2vec" in pretrained_model_name_or_path.lower() or "glove" in pretrained_model_name_or_path.lower():
                     language_model_class = 'WordEmbedding_LM'
+                elif 'bert' in pretrained_model_name_or_path:
+                    language_model_class = 'Bert'
 
             if language_model_class:
                 language_model = cls.subclasses[language_model_class].load(pretrained_model_name_or_path, **kwargs)
