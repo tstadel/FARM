@@ -17,6 +17,8 @@ from pathlib import Path
 from experiment import run_experiment, load_experiments
 from convert_bert_original_tf_checkpoint_to_pytorch import convert_tf_checkpoint_to_pytorch as convert_tf_to_pt_bert
 from convert_albert_original_tf_checkpoint_to_pytorch import convert_tf_checkpoint_to_pytorch as convert_tf_to_pt_albert
+from convert_electra_original_tf_checkpoint_to_pytorch import convert_tf_checkpoint_to_pytorch as convert_tf_to_pt_electra
+
 import os
 from shutil import copyfile
 import torch
@@ -27,15 +29,15 @@ CONFIG_FILES = {
     "germEval14": Path("germEval14_config.json")
 }
 
-model_type = "albert"
-bert_config_file = Path("../../saved_models/albert_pod/albert_xl_config_new.json")
-checkpoints_folder = Path("../../saved_models/albert_pod/")
-vocab_file = Path("../../saved_models/albert_pod/german-albert-v1.vocab")
-tokenizer_model = Path("../../saved_models/albert_pod/german-albert-v1.model")
-models = ["xlm-roberta-large"]
-# mlflow_url = "https://public-mlflow.deepset.ai/"
-mlflow_url = ""
-mlflow_experiment = "Test"
+model_type = "electra"
+bert_config_file = Path("../../saved_models/electra/config_large.json")
+checkpoints_folder = Path("../../saved_models/electra")
+vocab_file = Path("../../saved_models/electra/vocab.txt")
+tokenizer_model = None
+# models = ["xlm-roberta-large"]
+mlflow_url = "https://public-mlflow.deepset.ai/"
+# mlflow_url = ""
+mlflow_experiment = 'Electra'
 
 
 def convert_checkpoints(dir, model_type):
@@ -43,6 +45,9 @@ def convert_checkpoints(dir, model_type):
         convert_tf_to_pt = convert_tf_to_pt_bert
     elif model_type == "albert":
         convert_tf_to_pt = convert_tf_to_pt_albert
+    elif model_type == "electra":
+        convert_tf_to_pt = convert_tf_to_pt_electra
+
     tf_checkpoints_names = fetch_tf_checkpoints(dir)
     tf_checkpoints = [dir / tfcn for tfcn in tf_checkpoints_names]
     hf_checkpoints = []
@@ -110,5 +115,5 @@ def main_from_downloaded():
 
 
 if __name__ == "__main__":
-    # main_from_saved()
-    main_from_downloaded()
+    main_from_saved()
+    # main_from_downloaded()

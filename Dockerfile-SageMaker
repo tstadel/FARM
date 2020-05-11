@@ -1,0 +1,7 @@
+FROM deepset/farm-gpu-electra:0.4.2
+RUN pip3 install torch==1.4.0
+RUN pip3 install onnxruntime
+RUN pip3 install dill
+COPY experiments experiments
+COPY farm farm
+ENTRYPOINT ["python3", "experiments/german-bert2.0-eval/eval_with_sagemaker.py"]
