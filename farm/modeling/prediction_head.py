@@ -225,15 +225,17 @@ class RegressionHead(PredictionHead):
     def formatted_preds(self, logits, samples, **kwargs):
         preds = self.logits_to_preds(logits)
         contexts = [sample.clear_text["text"] for sample in samples]
+        ids = [sample.id for sample in samples]
 
         assert len(preds) == len(contexts)
 
         res = {"task": "regression", "predictions": []}
-        for pred, context in zip(preds, contexts):
+        for pred, context, sample_id in zip(preds, contexts, ids):
             res["predictions"].append(
                 {
                     "context": f"{context}",
-                    "pred": pred[0]
+                    "pred": pred[0],
+                    "id": sample_id
                 }
             )
         return res
@@ -363,13 +365,14 @@ class TextClassificationHead(PredictionHead):
         probs = self.logits_to_probs(logits, return_class_probs)
         contexts = [sample.clear_text["text"] for sample in samples]
         contexts_b = [sample.clear_text["text_b"] for sample in samples if "text_b" in  sample.clear_text]
+        ids = [sample.id for sample in samples]
         if len(contexts_b) != 0:
             contexts = ["|".join([a, b]) for a,b in zip(contexts, contexts_b)]
 
         assert len(preds) == len(probs) == len(contexts)
 
         res = {"task": "text_classification", "predictions": []}
-        for pred, prob, context in zip(preds, probs, contexts):
+        for pred, prob, context, id in zip(preds, probs, contexts, ids):
             if not return_class_probs:
                 pred_dict = {
                     "start": None,
@@ -377,6 +380,7 @@ class TextClassificationHead(PredictionHead):
                     "context": f"{context}",
                     "label": f"{pred}",
                     "probability": prob,
+                    "id": id
                 }
             else:
                 pred_dict = {
@@ -385,6 +389,7 @@ class TextClassificationHead(PredictionHead):
                     "context": f"{context}",
                     "label": "class_probabilities",
                     "probability": prob,
+                    "id": id
                 }
 
             res["predictions"].append(pred_dict)
@@ -483,11 +488,12 @@ class MultiLabelTextClassificationHead(PredictionHead):
         preds = self.logits_to_preds(logits)
         probs = self.logits_to_probs(logits)
         contexts = [sample.clear_text["text"] for sample in samples]
+        sample_ids = [sample.id for sample in samples]
 
         assert len(preds) == len(probs) == len(contexts)
 
         res = {"task": "text_classification", "predictions": []}
-        for pred, prob, context in zip(preds, probs, contexts):
+        for pred, prob, context, sample_id in zip(preds, probs, contexts, sample_ids):
             res["predictions"].append(
                 {
                     "start": None,
@@ -495,6 +501,7 @@ class MultiLabelTextClassificationHead(PredictionHead):
                     "context": f"{context}",
                     "label": f"{pred}",
                     "probability": prob,
+                    "id": sample_id
                 }
             )
         return res
@@ -674,16 +681,16 @@ class TokenClassificationHead(PredictionHead):
             preds, probs, samples, spans
         ):
             tags, spans_seq = convert_iob_to_simple_tags(preds_seq, spans_seq)
-            seq_res = []
+            seq_res = {"id": sample.id, "spans": []}
             for tag, prob, span in zip(tags, probs_seq, spans_seq):
                 context = sample.clear_text["text"][span["start"] : span["end"]]
-                seq_res.append(
+                seq_res["spans"].append(
                     {
                         "start": span["start"],
                         "end": span["end"],
                         "context": f"{context}",
                         "label": f"{tag}",
-                        "probability": prob,
+                        "probability": prob
                     }
                 )
             res["predictions"].append(seq_res)
