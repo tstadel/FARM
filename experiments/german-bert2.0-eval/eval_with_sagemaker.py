@@ -32,44 +32,6 @@ CONFIG_FILES = {
 }
 COMPLETED_FILE = "/opt/ml/checkpoints/completed.txt"
 
-# model_type = "electra"
-# config_file = Path("../../saved_models/electra/config_large.json")
-# checkpoints_folder = Path("../../saved_models/electra/")
-# vocab_file = Path("../../saved_models/electra/vocab.txt")
-# # tokenizer_model = Path("../../saved_models/electra/tokenizer.model")
-# tokenizer_model = None
-# models = ["xlm-roberta-large"]
-# # mlflow_url = "https://public-mlflow.deepset.ai/"
-# mlflow_url = ""
-# mlflow_experiment = "Test"
-
-def convert_checkpoints(checkpoints_folder,
-                        model_type,
-                        model_config_file,
-                        vocab_file,
-                        tokenizer_model=None):
-    if model_type == "bert":
-        convert_tf_to_pt = convert_tf_to_pt_bert
-    elif model_type == "albert":
-        convert_tf_to_pt = convert_tf_to_pt_albert
-    elif model_type == "electra":
-        convert_tf_to_pt = convert_tf_to_pt_electra
-
-    tf_checkpoints_names = fetch_tf_checkpoints(dir)
-    tf_checkpoints = [checkpoints_folder / tfcn for tfcn in tf_checkpoints_names]
-    hf_checkpoints = []
-    for tfc in tf_checkpoints:
-        dump_dir_name = "pt_bert_" + str(tfc).split("-")[1]
-        dump_dir = checkpoints_folder / dump_dir_name
-        if not os.path.isdir(dump_dir):
-            os.mkdir(dump_dir)
-        hf_checkpoints.append(dump_dir)
-        convert_tf_to_pt(tfc, model_config_file, dump_dir / "pytorch_model.bin")
-        copyfile(model_config_file, dump_dir / "config.json")
-        copyfile(vocab_file, dump_dir / "vocab.txt")
-        if tokenizer_model.lower() != "none":
-            copyfile(tokenizer_model, dump_dir/"spiece.model")
-
 def fetch_tf_checkpoints(dir):
     files = os.listdir(dir)
     files = [f for f in files if "model.ckpt-" in f]
@@ -77,14 +39,14 @@ def fetch_tf_checkpoints(dir):
     checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]), reverse=True)
     return checkpoints
 
-def fetch_pt_checkpoints(dir):
+def fetch_pt_checkpoints(dir, model_type):
     files = os.listdir(dir)
     files = [dir / f for f in files if "pt_" in f]
-    checkpoints = sorted(files, key=lambda x: int(str(x).replace("pt_bert_", "").split("/")[-1].split("-")[0]), reverse=True)
+    checkpoints = sorted(files, key=lambda x: int(str(x).replace(f"pt_{model_type}_", "").split("/")[-1].split("-")[0]), reverse=True)
     return checkpoints
 
 def main_from_saved(args, completed):
-    checkpoints = fetch_pt_checkpoints(Path(args["checkpoints_folder"]))
+    checkpoints = fetch_pt_checkpoints(Path(args["checkpoints_folder"]), args["model_type"])
     logging.info(f"Performing evaluation on these checkpoints: {checkpoints}")
     logging.info(f"Performing evaluation using these experiments: {CONFIG_FILES}")
     if completed:
@@ -134,13 +96,6 @@ def main():
     with open("/opt/ml/input/config/hyperparameters.json") as f:
         params = json.load(f)
     logging.info(params)
-    if params["convert_checkpoints"].lower() == "true":
-        # NOTE: This only needs to be run once
-        convert_checkpoints(checkpoints_folder=Path(params.checkpoints_folder),
-                            model_type=params.model_type,
-                            model_config_file=params.model_config_file,
-                            vocab_file=params.vocab_file,
-                            tokenizer_model=params.config_file)
     open(COMPLETED_FILE, "a").close()
     completed = [l.strip() for l in open(COMPLETED_FILE)]
     logging.info(f"Starting a train job with parameters {params}")

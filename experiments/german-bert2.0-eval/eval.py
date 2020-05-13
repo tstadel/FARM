@@ -22,6 +22,7 @@ from convert_electra_original_tf_checkpoint_to_pytorch import convert_tf_checkpo
 import os
 from shutil import copyfile
 import torch
+import regex as re
 
 CONFIG_FILES = {
     "germEval18Fine": Path("germEval18Fine_config.json"),
@@ -30,9 +31,9 @@ CONFIG_FILES = {
 }
 
 model_type = "electra"
-bert_config_file = Path("../../saved_models/electra/config_large.json")
-checkpoints_folder = Path("../../saved_models/electra")
-vocab_file = Path("../../saved_models/electra/vocab.txt")
+bert_config_file = Path("../../saved_models/electra-base-german-dbmdz-fixed-cased/config.json")
+checkpoints_folder = Path("../../saved_models/electra-base-german-dbmdz-fixed-cased")
+vocab_file = Path("../../saved_models/electra-base-german-dbmdz-fixed-cased/vocab.txt")
 tokenizer_model = None
 # models = ["xlm-roberta-large"]
 mlflow_url = "https://public-mlflow.deepset.ai/"
@@ -52,7 +53,9 @@ def convert_checkpoints(dir, model_type):
     tf_checkpoints = [dir / tfcn for tfcn in tf_checkpoints_names]
     hf_checkpoints = []
     for tfc in tf_checkpoints:
-        dump_dir_name = "pt_bert_" + str(tfc).split("-")[1]
+        print(tfc)
+        step = re.search("-(\d+)$", str(tfc))[1]
+        dump_dir_name = f"pt_{model_type}_" + step
         dump_dir = checkpoints_folder / dump_dir_name
         if not os.path.isdir(dump_dir):
             os.mkdir(dump_dir)
@@ -73,29 +76,29 @@ def fetch_tf_checkpoints(dir):
 def fetch_pt_checkpoints(dir):
     files = os.listdir(dir)
     files = [dir / f for f in files if "pt_" in f]
-    checkpoints = sorted(files, key=lambda x: int(str(x).replace("pt_bert_", "").split("/")[-1].split("-")[0]), reverse=True)
+    checkpoints = sorted(files, key=lambda x: int(str(x).replace(f"pt_{model_type}_", "").split("/")[-1].split("-")[0]), reverse=True)
     return checkpoints
 
 def main_from_saved():
     # NOTE: This only needs to be run once
     convert_checkpoints(checkpoints_folder, model_type)
 
-    checkpoints = fetch_pt_checkpoints(checkpoints_folder)
-    print(f"Performing evaluation on these checkpoints: {checkpoints}")
-    print(f"Performing evaluation using these experiments: {CONFIG_FILES}")
-    for checkpoint in checkpoints:
-        for i, (conf_name, conf_file) in enumerate(CONFIG_FILES.items()):
-            experiments = load_experiments(conf_file)
-            steps = str(checkpoint).split("_")[-1]
-            for j, experiment in enumerate(experiments):
-                mlflow_run_name = f"{conf_name}_step{steps}_{j}"
-                experiment.logging.mlflow_url = mlflow_url
-                experiment.logging.mlflow_experiment = mlflow_experiment
-                experiment.logging.mlflow_run_name = mlflow_run_name
-                experiment.parameter.model = checkpoint
-                experiment.general.output_dir = str(checkpoint).split("/")[:-1]
-                run_experiment(experiment)
-                torch.cuda.empty_cache()
+    # checkpoints = fetch_pt_checkpoints(checkpoints_folder)
+    # print(f"Performing evaluation on these checkpoints: {checkpoints}")
+    # print(f"Performing evaluation using these experiments: {CONFIG_FILES}")
+    # for checkpoint in checkpoints:
+    #     for i, (conf_name, conf_file) in enumerate(CONFIG_FILES.items()):
+    #         experiments = load_experiments(conf_file)
+    #         steps = str(checkpoint).split("_")[-1]
+    #         for j, experiment in enumerate(experiments):
+    #             mlflow_run_name = f"{conf_name}_step{steps}_{j}"
+    #             experiment.logging.mlflow_url = mlflow_url
+    #             experiment.logging.mlflow_experiment = mlflow_experiment
+    #             experiment.logging.mlflow_run_name = mlflow_run_name
+    #             experiment.parameter.model = checkpoint
+    #             experiment.general.output_dir = str(checkpoint).split("/")[:-1]
+    #             run_experiment(experiment)
+    #             torch.cuda.empty_cache()
 
 def main_from_downloaded():
     print(f"Performing evaluation on these models: {models}")
