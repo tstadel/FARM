@@ -132,7 +132,8 @@ class Trainer:
         global_step=0,
         evaluator_test=True,
         disable_tqdm=False,
-        max_grad_norm=1.0
+        max_grad_norm=1.0,
+        random_state=None
     ):
         """
         :param optimizer: An optimizer object that determines the learning strategy to be used during training
@@ -187,6 +188,8 @@ class Trainer:
         :type disable_tqdm: bool
         :param max_grad_norm: Max gradient norm for clipping, default 1.0, set to None to disable
         :type max_grad_norm: float
+        :param random_state: the random state to be resumed after fast-forwarding
+        :type random_state: dict
         """
 
         self.model = model
@@ -229,6 +232,7 @@ class Trainer:
 
         self.from_epoch = from_epoch
         self.from_step = from_step
+        self.resume_random_state = random_state
         self.global_step = global_step
 
     def train(self):
@@ -265,12 +269,17 @@ class Trainer:
                     # The seeds before and within the loop are currently needed, if you need full reproducibility
                     # of runs with vs. without checkpointing using StreamingDataSilo. Reason: While skipping steps in StreamingDataSilo,
                     # we update the state of the random number generator (e.g. due to masking words), which can impact the model behaviour (e.g. dropout)
-                    if step % 10000 == 0:
-                        logger.info(f"Skipping {step} out of {resume_from_step} steps ...")
                     if resume_from_step == step:
                         logger.info(f"Finished skipping {resume_from_step} steps ...")
                         resume_from_step = None
+                        numpy_rng_state = self.resume_random_state["numpy_rng_state"]
+                        numpy.random.set_state(numpy_rng_state)
+                        rng_state = self.resume_random_state["rng_state"]
+                        cuda_rng_state = self.resume_random_state["cuda_rng_state"]
+                        torch.set_rng_state(rng_state)
+                        torch.cuda.set_rng_state(cuda_rng_state)
                     else:
+                        progress_bar.set_description(f"Fast-forwarding {resume_from_step - step} steps...")
                         continue
 
                 progress_bar.set_description(f"Train epoch {epoch}/{self.epochs-1} (Cur. train loss: {loss:.4f})")
@@ -478,6 +487,11 @@ class Trainer:
         cuda_rng_state = trainer_checkpoint["cuda_rng_state"]
         torch.set_rng_state(rng_state)
         torch.cuda.set_rng_state(cuda_rng_state)
+        random_state_dict = {
+            "numpy_rng_state": numpy_rng_state,
+            "rng_state": rng_state,
+            "cuda_rng_state": cuda_rng_state
+        }
 
         model.load_state_dict(trainer_checkpoint["model_state"], strict=True)
         optimizer.load_state_dict(trainer_checkpoint["optimizer_state"])
@@ -492,6 +506,7 @@ class Trainer:
             model=model,
             optimizer=optimizer,
             lr_schedule=scheduler,
+            random_state=random_state_dict,
             **trainer_state_dict
         )
 
